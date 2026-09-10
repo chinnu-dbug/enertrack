@@ -10,7 +10,10 @@ from flask import Flask, render_template, request, jsonify, Response
 
 from database.db_init import init_db, DB_PATH, get_db_connection
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__,
+            template_folder=os.path.join(BASE_DIR, 'templates'),
+            static_folder=os.path.join(BASE_DIR, 'static'))
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max limit
 
 # Ensure database is initialized before handling requests
