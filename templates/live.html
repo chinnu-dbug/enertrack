@@ -1,0 +1,115 @@
+{% extends 'layout.html' %}
+
+{% block title %}Live Monitor - EnerTrack{% endblock %}
+{% block header_title %}Live Collection Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header-container">
+    <div>
+        <h2 class="section-title">⚡ Live Monitor</h2>
+        <p class="section-subtitle">Real-time electricity data stream and meter telemetry.</p>
+    </div>
+    <span class="badge badge-success px-3 py-2 fs-6">
+        <i class="fa-solid fa-signal"></i> Live Stream Active
+    </span>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header flex-between">
+        <h3><i class="fa-solid fa-satellite-dish text-success"></i> Real-time Meter Telemetry</h3>
+        <div class="demo-tag">
+            <i class="fa-solid fa-circle-info"></i> <strong>Demo Data</strong>: Simulated live feed
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="live-grid-cards">
+            <div class="live-card">
+                <span class="l-label">Voltage</span>
+                <div class="l-val" id="liveV">230.2 <small>V</small></div>
+                <span class="l-status text-success">Optimal (180-260 V)</span>
+            </div>
+
+            <div class="live-card">
+                <span class="l-label">Current</span>
+                <div class="l-val" id="liveI">5.42 <small>A</small></div>
+                <span class="l-status text-success">Normal Range</span>
+            </div>
+
+            <div class="live-card">
+                <span class="l-label">Active Power</span>
+                <div class="l-val" id="liveP">1.18 <small>kW</small></div>
+                <span class="l-status text-primary">Auto Calculated</span>
+            </div>
+
+            <div class="live-card">
+                <span class="l-label">Power Factor</span>
+                <div class="l-val" id="livePF">0.95</div>
+                <span class="l-status text-success">High Efficiency</span>
+            </div>
+        </div>
+
+        <div class="live-chart-container mt-4">
+            <h4>Live Power Graph (Last 20 updates)</h4>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="liveStreamChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const ctx = document.getElementById('liveStreamChart').getContext('2d');
+        const liveChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Power (kW)',
+                    data: [],
+                    borderColor: '#0284c7',
+                    backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Power (kW)' } }
+                }
+            }
+        });
+
+        function fetchLiveStream() {
+            fetch('/api/live')
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        const d = res.meter_data;
+                        document.getElementById('liveV').innerHTML = `${d.voltage} <small>V</small>`;
+                        document.getElementById('liveI').innerHTML = `${d.current} <small>A</small>`;
+                        document.getElementById('liveP').innerHTML = `${d.power_kw} <small>kW</small>`;
+                        document.getElementById('livePF').innerText = d.power_factor;
+
+                        const nowTime = new Date().toLocaleTimeString();
+                        liveChart.data.labels.push(nowTime);
+                        liveChart.data.datasets[0].data.push(d.power_kw);
+
+                        if (liveChart.data.labels.length > 20) {
+                            liveChart.data.labels.shift();
+                            liveChart.data.datasets[0].data.shift();
+                        }
+                        liveChart.update();
+                    }
+                });
+        }
+
+        fetchLiveStream();
+        setInterval(fetchLiveStream, 3000);
+    });
+</script>
+{% endblock %}

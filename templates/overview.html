@@ -1,0 +1,458 @@
+{% extends 'layout.html' %}
+{% block title %}Executive Overview - EnerTrack{% endblock %}
+{% block header_title %}Overview Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header-container">
+    <div>
+        <h2 class="section-title">⚡ System Overview Dashboard</h2>
+        <p class="section-subtitle">Real-time electricity consumption telemetry, lifetime metrics, and AI over-consumption monitoring.</p>
+    </div>
+    <div class="header-actions">
+        <a href="{{ url_for('page_alerts') }}" class="btn btn-outline" style="border-color: #ef4444; color: #ef4444;">
+            <i class="fa-solid fa-brain"></i> AI Diagnostics
+        </a>
+        <a href="{{ url_for('page_collection') }}" class="btn btn-primary">
+            <i class="fa-solid fa-circle-plus"></i> Record Reading
+        </a>
+    </div>
+</div>
+
+<!-- Telemetry Quick Strip -->
+<div class="quick-stats-strip">
+    <div class="quick-stat-item">
+        <i class="fa-solid fa-gauge-high"></i>
+        <span>Active Meters: <strong id="stripMeters">5 Locations</strong></span>
+    </div>
+    <div class="quick-stat-item">
+        <i class="fa-solid fa-satellite-dish"></i>
+        <span>Telemetry Status: <strong id="stripStatus" class="text-success">Live Online</strong></span>
+    </div>
+    <div class="quick-stat-item">
+        <i class="fa-solid fa-database"></i>
+        <span>Total Data Points: <strong id="stripReadings">--</strong></span>
+    </div>
+    <div class="quick-stat-item">
+        <i class="fa-solid fa-wave-square"></i>
+        <span>Avg Power Factor: <strong id="stripPf">--</strong></span>
+    </div>
+    <div class="quick-stat-item">
+        <i class="fa-solid fa-indian-rupee-sign"></i>
+        <span>Tariff Rate: <strong id="stripTariff">₹8.00 / kWh</strong></span>
+    </div>
+</div>
+
+<!-- TOP KPI GRID: Lifetime Total & Today's Consumption -->
+<div class="kpi-grid kpi-grid-4 mb-4">
+    <!-- Card 1: TOTAL CONSUMPTION (ALL-TIME) -->
+    <div class="kpi-card" style="border-top: 4px solid var(--accent-color);">
+        <div class="kpi-icon icon-blue">
+            <i class="fa-solid fa-plug-circle-bolt"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Total Consumption (All-Time)</span>
+            <h3 class="kpi-value" id="dashTotalEnergy">-- kWh</h3>
+            <span class="kpi-subtext" id="dashTotalMwh">Lifetime across all meters</span>
+        </div>
+    </div>
+
+    <!-- Card 2: TODAY'S CONSUMPTION -->
+    <div class="kpi-card" style="border-top: 4px solid #10b981;">
+        <div class="kpi-icon icon-green">
+            <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Today's Consumption</span>
+            <h3 class="kpi-value" id="dashTodayEnergy">-- kWh</h3>
+            <span class="kpi-subtext" id="dashTodayCost">Cost: -- ₹</span>
+        </div>
+    </div>
+
+    <!-- Card 3: TOTAL POWER COST -->
+    <div class="kpi-card kpi-card-cost" style="border-top: 4px solid #7c3aed;">
+        <div class="kpi-icon icon-rupee">
+            <i class="fa-solid fa-indian-rupee-sign"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Total Cost (All-Time)</span>
+            <h3 class="kpi-value" id="dashTotalCost">-- ₹</h3>
+            <span class="kpi-subtext" id="dashTariffSub">Cumulative billing</span>
+        </div>
+    </div>
+
+    <!-- Card 4: AI OVER-CONSUMPTION STATUS -->
+    <div class="kpi-card" id="dashAiStatusCard" style="border-top: 4px solid #ef4444; cursor: pointer;" onclick="window.location.href='{{ url_for('page_alerts') }}'">
+        <div class="kpi-icon icon-orange" id="dashAiIcon">
+            <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">AI Consumption Health</span>
+            <h3 class="kpi-value" style="font-size: 1.25rem;" id="dashAiStatusTitle">Analyzing...</h3>
+            <span class="kpi-subtext" id="dashAiStatusSub">Click for AI Diagnostics &rarr;</span>
+        </div>
+    </div>
+</div>
+
+<!-- Dynamic AI Advisory Banner -->
+<div class="ai-hero-banner critical" id="dashAiBanner" style="display: none;">
+    <div class="ai-banner-content">
+        <div class="ai-avatar-icon" id="dashBannerAvatar">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div class="ai-banner-text">
+            <h3 id="dashBannerHeading">AI Advisory: Elevated Electricity Consumption</h3>
+            <p id="dashBannerDesc">Analyzing current electrical run-rate against historical 30-day baseline...</p>
+            <div class="ai-banner-meta">
+                <span class="ai-pill" id="dashBannerBurnRate"><i class="fa-solid fa-chart-line"></i> Run Rate: --</span>
+                <span class="ai-pill" id="dashBannerDriver"><i class="fa-solid fa-fire"></i> Primary Load: --</span>
+            </div>
+        </div>
+    </div>
+    <a href="{{ url_for('page_alerts') }}" class="btn btn-primary" style="white-space: nowrap;">
+        <i class="fa-solid fa-brain"></i> Open AI Diagnostics
+    </a>
+</div>
+
+<!-- Primary Charts Row -->
+<div class="grid-2col mb-4" style="grid-template-columns: 2fr 1fr;">
+    <!-- 30-Day Daily Consumption & Cost Trajectory -->
+    <div class="card shadow-sm">
+        <div class="card-header flex-between">
+            <div>
+                <h3><i class="fa-solid fa-chart-line text-primary"></i> Daily Consumption & Cost Trajectory</h3>
+                <small class="text-muted">Daily Total Electricity Consumed (kWh) & Cost (₹)</small>
+            </div>
+            <span class="badge badge-soft-primary">Last 14 Days</span>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="height: 290px;">
+                <canvas id="overviewTrendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Donut: Consumption by Location -->
+    <div class="card shadow-sm">
+        <div class="card-header flex-between">
+            <div>
+                <h3><i class="fa-solid fa-chart-pie text-accent"></i> By Meter Location</h3>
+                <small class="text-muted">Electricity Breakdown by Meter</small>
+            </div>
+            <a href="{{ url_for('page_analytics') }}" class="text-primary" style="font-size: 0.85rem; text-decoration: none;">Details &rarr;</a>
+        </div>
+        <div class="card-body" style="display: flex; flex-direction: column; align-items: center;">
+            <div class="chart-container" style="height: 230px; width: 100%; position: relative;">
+                <canvas id="overviewLocDonutChart"></canvas>
+            </div>
+            <div id="overviewLocLegend" style="display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 0.5rem;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Row: Location Breakdown & Recent Readings -->
+<div class="grid-2col mb-4">
+    <!-- Location Consumption -->
+    <div class="card shadow-sm">
+        <div class="card-header flex-between">
+            <div>
+                <h3><i class="fa-solid fa-building text-primary"></i> Consumption by Meter Location</h3>
+                <small class="text-muted">Total Energy Collected per Building (kWh)</small>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="height: 250px;">
+                <canvas id="overviewLocChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Readings Feed -->
+    <div class="card shadow-sm">
+        <div class="card-header flex-between">
+            <div>
+                <h3><i class="fa-solid fa-clock-rotate-left text-primary"></i> Live Telemetry Feed</h3>
+                <small class="text-muted">Latest Recorded Energy Readings</small>
+            </div>
+            <a href="{{ url_for('page_collection') }}" class="btn btn-outline" style="padding: 0.25rem 0.6rem; font-size: 0.8rem;">
+                View All
+            </a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 270px; overflow-y: auto;">
+                <table class="table mb-0" style="font-size: 0.84rem;">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Location</th>
+                            <th>Voltage</th>
+                            <th>Power</th>
+                            <th>PF</th>
+                        </tr>
+                    </thead>
+                    <tbody id="overviewRecentTable">
+                        <tr><td colspan="5" class="text-center py-3 text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Loading telemetry...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let overviewTrendChart = null;
+let overviewLocDonutChart = null;
+let overviewLocChart = null;
+
+const LOC_PALETTE = ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899'];
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadOverviewData();
+});
+
+function loadOverviewData() {
+    fetch('/api/dashboard/overview')
+        .then(r => r.json())
+        .then(data => {
+            if (data.status !== 'success') return;
+
+            // Strip Telemetry
+            document.getElementById('stripMeters').innerText = `${data.active_meters} Locations`;
+            document.getElementById('stripReadings').innerText = data.total_readings.toLocaleString();
+            document.getElementById('stripPf').innerText = data.avg_power_factor.toFixed(2);
+            document.getElementById('stripTariff').innerText = `₹${data.electricity_price_inr.toFixed(2)} / kWh`;
+
+            // Top KPI Cards
+            document.getElementById('dashTotalEnergy').innerText = `${data.total_energy_kwh.toLocaleString()} kWh`;
+            document.getElementById('dashTotalMwh').innerText = `${data.total_energy_mwh} MWh total energy`;
+            document.getElementById('dashTodayEnergy').innerText = `${data.today_energy_kwh.toFixed(2)} kWh`;
+            document.getElementById('dashTodayCost').innerText = `Today's Cost: ₹${data.today_cost_inr.toFixed(2)}`;
+            document.getElementById('dashTotalCost').innerText = `₹${data.total_cost_inr.toLocaleString()}`;
+            document.getElementById('dashTariffSub').innerText = `@ ₹${data.electricity_price_inr.toFixed(2)} / kWh`;
+
+            // AI Status KPI Card
+            const alert = data.ai_alert;
+            const statusTitle = document.getElementById('dashAiStatusTitle');
+            const statusSub = document.getElementById('dashAiStatusSub');
+            const aiCard = document.getElementById('dashAiStatusCard');
+            const aiIcon = document.getElementById('dashAiIcon');
+
+            if (alert.status === 'critical') {
+                statusTitle.innerText = 'Critical Over-use';
+                statusTitle.style.color = '#ef4444';
+                statusSub.innerText = `+${alert.excess_pct}% vs baseline (Click)`;
+                aiCard.style.borderTopColor = '#ef4444';
+                aiIcon.className = 'kpi-icon icon-red';
+            } else if (alert.status === 'warning') {
+                statusTitle.innerText = 'Elevated Load';
+                statusTitle.style.color = '#f59e0b';
+                statusSub.innerText = `+${alert.excess_pct}% vs baseline (Click)`;
+                aiCard.style.borderTopColor = '#f59e0b';
+                aiIcon.className = 'kpi-icon icon-orange';
+            } else {
+                statusTitle.innerText = 'Optimal Level';
+                statusTitle.style.color = '#10b981';
+                statusSub.innerText = 'Normal consumption on track';
+                aiCard.style.borderTopColor = '#10b981';
+                aiIcon.className = 'kpi-icon icon-green';
+            }
+
+            // AI Banner
+            const banner = document.getElementById('dashAiBanner');
+            if (alert.status === 'critical' || alert.status === 'warning') {
+                banner.style.display = 'flex';
+                banner.className = `ai-hero-banner ${alert.status}`;
+                document.getElementById('dashBannerHeading').innerText = `AI Advisory: ${alert.title}`;
+                document.getElementById('dashBannerDesc').innerText = alert.message;
+                document.getElementById('dashBannerBurnRate').innerHTML = `<i class="fa-solid fa-chart-line"></i> Projected Day: <strong>${data.projected_today_kwh} kWh</strong> (+${alert.excess_pct}%)`;
+                
+                // Top location if available
+                const topLoc = data.location_distribution?.[0];
+                if (topLoc) {
+                    document.getElementById('dashBannerDriver').innerHTML = `<i class="fa-solid fa-fire"></i> Top Meter: <strong>${topLoc.location} (${topLoc.share_pct}%)</strong>`;
+                    document.getElementById('dashBannerDriver').style.display = 'inline-block';
+                }
+            } else {
+                banner.style.display = 'flex';
+                banner.className = 'ai-hero-banner optimal';
+                document.getElementById('dashBannerHeading').innerText = 'AI Advisory: Energy Efficiency Optimal';
+                document.getElementById('dashBannerDesc').innerText = alert.message;
+                document.getElementById('dashBannerBurnRate').innerHTML = `<i class="fa-solid fa-circle-check"></i> Within Expected 30-day Baseline (${data.avg_daily_kwh} kWh/day)`;
+                document.getElementById('dashBannerDriver').style.display = 'none';
+            }
+
+            // Render Charts
+            renderOverviewTrendChart(data.daily_trend);
+            renderOverviewLocDonutChart(data.location_distribution);
+            renderOverviewLocChart(data.location_distribution);
+            renderOverviewRecentTable(data.recent_readings);
+        })
+        .catch(err => console.error('Error loading dashboard overview:', err));
+}
+
+function renderOverviewTrendChart(dailyData) {
+    if (!dailyData || !dailyData.length) return;
+    const ctx = document.getElementById('overviewTrendChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (overviewTrendChart) overviewTrendChart.destroy();
+
+    const labels = dailyData.map(d => d.day.slice(5)); // MM-DD
+    const energyVals = dailyData.map(d => d.energy_kwh);
+    const costVals = dailyData.map(d => d.cost_inr);
+
+    overviewTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Energy (kWh)',
+                    data: energyVals,
+                    borderColor: '#0284c7',
+                    backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                    borderWidth: 2.5,
+                    tension: 0.3,
+                    fill: true,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Cost (₹)',
+                    data: costVals,
+                    borderColor: '#10b981',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    tension: 0.3,
+                    pointRadius: 3,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: 'Energy (kWh)' },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: { display: true, text: 'Cost (₹)' },
+                    grid: { drawOnChartArea: false }
+                }
+            },
+            plugins: {
+                legend: { position: 'top', labels: { boxWidth: 12 } }
+            }
+        }
+    });
+}
+
+function renderOverviewLocDonutChart(locs) {
+    if (!locs || !locs.length) return;
+    const ctx = document.getElementById('overviewLocDonutChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (overviewLocDonutChart) overviewLocDonutChart.destroy();
+
+    const labels = locs.map(l => l.location);
+    const dataVals = locs.map(l => l.energy_kwh);
+    const bgColors = labels.map((_, i) => LOC_PALETTE[i % LOC_PALETTE.length]);
+
+    overviewLocDonutChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: dataVals,
+                backgroundColor: bgColors,
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.label}: ${ctx.parsed} kWh (${locs[ctx.dataIndex].share_pct}%)`
+                    }
+                }
+            }
+        }
+    });
+
+    // Custom Legend
+    const legendEl = document.getElementById('overviewLocLegend');
+    legendEl.innerHTML = locs.map((l, i) => `
+        <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; color:#475569;">
+            <span style="width:8px; height:8px; border-radius:50%; background:${LOC_PALETTE[i % LOC_PALETTE.length]};"></span>
+            ${l.location} (${l.share_pct}%)
+        </span>
+    `).join('');
+}
+
+function renderOverviewLocChart(locs) {
+    if (!locs || !locs.length) return;
+    const ctx = document.getElementById('overviewLocChart')?.getContext('2d');
+    if (!ctx) return;
+
+    if (overviewLocChart) overviewLocChart.destroy();
+
+    const labels = locs.map(l => l.location);
+    const dataVals = locs.map(l => l.energy_kwh);
+
+    overviewLocChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Energy (kWh)',
+                data: dataVals,
+                backgroundColor: '#0284c7',
+                borderRadius: 6
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                y: { grid: { display: false } }
+            }
+        }
+    });
+}
+
+function renderOverviewRecentTable(readings) {
+    const tbody = document.getElementById('overviewRecentTable');
+    if (!tbody || !readings) return;
+
+    tbody.innerHTML = readings.map(r => {
+        const timeStr = r.timestamp.slice(11, 19);
+        return `
+            <tr>
+                <td style="color:#64748b;"><i class="fa-regular fa-clock"></i> ${timeStr}</td>
+                <td><strong>${r.location}</strong></td>
+                <td>${parseFloat(r.voltage).toFixed(1)} V</td>
+                <td><strong style="color:var(--text-dark);">${parseFloat(r.power_kw).toFixed(2)} kW</strong></td>
+                <td><span class="badge ${r.power_factor < 0.90 ? 'badge-soft-warning' : 'badge-soft-success'}">${parseFloat(r.power_factor).toFixed(2)}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+</script>
+{% endblock %}

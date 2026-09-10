@@ -1,0 +1,507 @@
+{% extends 'layout.html' %}
+{% block title %}Analytics - EnerTrack{% endblock %}
+{% block header_title %}Analytics Engine{% endblock %}
+
+{% block content %}
+<div class="page-header-container">
+    <div>
+        <h2 class="section-title">📊 Analytics — Consumption by Location</h2>
+        <p class="section-subtitle">See exactly how much electricity each meter location consumes and what it costs in ₹.</p>
+    </div>
+    <div class="header-actions">
+        <!-- Time Window Filter -->
+        <div class="window-tabs" id="windowTabs">
+            <button class="window-tab active" data-window="today">Today</button>
+            <button class="window-tab" data-window="week">Last 7 Days</button>
+            <button class="window-tab" data-window="month">This Month</button>
+            <button class="window-tab" data-window="all">All Time</button>
+        </div>
+    </div>
+</div>
+
+<!-- Summary KPIs -->
+<div class="kpi-grid kpi-grid-4 mb-4" id="analyticsKpiGrid">
+    <div class="kpi-card">
+        <div class="kpi-icon icon-blue"><i class="fa-solid fa-bolt"></i></div>
+        <div class="kpi-info">
+            <span class="kpi-label">Total Energy Used</span>
+            <h3 class="kpi-value" id="aKpiTotalEnergy">-- kWh</h3>
+            <span class="kpi-subtext" id="aKpiWindow">All time</span>
+        </div>
+    </div>
+    <div class="kpi-card kpi-card-cost">
+        <div class="kpi-icon icon-rupee"><i class="fa-solid fa-indian-rupee-sign"></i></div>
+        <div class="kpi-info">
+            <span class="kpi-label">Total Cost (₹)</span>
+            <h3 class="kpi-value" id="aKpiTotalCost">-- ₹</h3>
+            <span class="kpi-subtext" id="aKpiRate">@ ₹8.00 / kWh</span>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon icon-green"><i class="fa-solid fa-location-dot"></i></div>
+        <div class="kpi-info">
+            <span class="kpi-label">Locations Tracked</span>
+            <h3 class="kpi-value" id="aKpiLocations">--</h3>
+            <span class="kpi-subtext">Meters / zones</span>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon icon-orange"><i class="fa-solid fa-crown"></i></div>
+        <div class="kpi-info">
+            <span class="kpi-label">Top Consumer</span>
+            <h3 class="kpi-value" id="aKpiTopLoc" style="font-size:1rem;">--</h3>
+            <span class="kpi-subtext" id="aKpiTopPct">-- % of total</span>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid-2col mb-4">
+    <!-- Donut Chart: Consumption Share -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-chart-pie text-primary"></i> Consumption Share by Location</h3>
+            <small class="text-muted">% of total energy</small>
+        </div>
+        <div class="card-body">
+            <div class="donut-chart-wrap">
+                <canvas id="consumptionDonut"></canvas>
+                <div class="donut-center-label">
+                    <span id="donutCenterValue">--</span>
+                    <small>kWh total</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Horizontal Bar: kWh per location -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-chart-bar text-accent"></i> Energy Consumed per Location</h3>
+            <small class="text-muted">kWh</small>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="height:280px;">
+                <canvas id="energyBarChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cost Bar Chart (₹ per location) -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header">
+        <h3><i class="fa-solid fa-indian-rupee-sign" style="color:#7c3aed;"></i> Electricity Cost per Location (₹)</h3>
+        <small class="text-muted">Based on ₹/kWh tariff from Settings</small>
+    </div>
+    <div class="card-body">
+        <div class="chart-container" style="height:220px;">
+            <canvas id="costBarChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Daily Trend Line Chart -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header flex-between flex-wrap gap-2">
+        <h3><i class="fa-solid fa-chart-line text-success"></i> Daily Energy Trend</h3>
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+            <select id="trendLocationFilter" class="form-control" style="width:auto;">
+                <option value="All">All Locations</option>
+                <option value="Main Meter">Main Meter</option>
+                <option value="Lab Building A">Lab Building A</option>
+                <option value="Library Wing">Library Wing</option>
+                <option value="Computer Center">Computer Center</option>
+                <option value="Cafeteria Block">Cafeteria Block</option>
+            </select>
+            <select id="trendDaysFilter" class="form-control" style="width:auto;">
+                <option value="7">Last 7 Days</option>
+                <option value="14">Last 14 Days</option>
+                <option value="30" selected>Last 30 Days</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="chart-container" style="height:260px;">
+            <canvas id="dailyTrendChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Detailed Per-Location Breakdown Table -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header">
+        <h3><i class="fa-solid fa-table-list text-primary"></i> Detailed Location Breakdown</h3>
+        <small class="text-muted" id="tableWindowLabel">All time</small>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="locationBreakdownTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Location / Zone</th>
+                        <th>Readings</th>
+                        <th>Energy Used (kWh)</th>
+                        <th>Cost (₹)</th>
+                        <th>Share (%)</th>
+                        <th>Avg Power (kW)</th>
+                        <th>Peak Power (kW)</th>
+                        <th>Avg Voltage (V)</th>
+                        <th>Avg PF</th>
+                        <th>Efficiency</th>
+                    </tr>
+                </thead>
+                <tbody id="locationTableBody">
+                    <tr>
+                        <td colspan="11" class="text-center py-4 text-muted">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Loading analytics...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Consumption Heatmap by Location & Hour -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header">
+        <h3><i class="fa-solid fa-fire text-accent"></i> Peak Hours by Location</h3>
+        <small class="text-muted">Average power (kW) by hour of day</small>
+    </div>
+    <div class="card-body">
+        <div class="chart-container" style="height:260px;">
+            <canvas id="hourlyHeatChart"></canvas>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Chart instances
+let donutChart = null, energyBarChart = null, costBarChart = null;
+let dailyTrendChart = null, hourlyHeatChart = null;
+
+const LOCATION_COLORS = [
+    '#0284c7', '#10b981', '#f59e0b', '#7c3aed', '#ef4444',
+    '#06b6d4', '#84cc16', '#f97316', '#8b5cf6', '#ec4899'
+];
+
+const LOCATION_COLORS_ALPHA = LOCATION_COLORS.map(c => c + '33');
+
+// Window label map
+const WINDOW_LABELS = {
+    today: 'Today',
+    week: 'Last 7 Days',
+    month: 'This Month',
+    all: 'All Time'
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    initAllCharts();
+    loadAnalytics('all');
+    loadDailyTrend(30, 'All');
+
+    // Window tab switches (location section)
+    document.querySelectorAll('#windowTabs .window-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('#windowTabs .window-tab').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadAnalytics(btn.dataset.window);
+        });
+    });
+
+    // Trend filters
+    document.getElementById('trendDaysFilter').addEventListener('change', () => {
+        loadDailyTrend(
+            parseInt(document.getElementById('trendDaysFilter').value),
+            document.getElementById('trendLocationFilter').value
+        );
+    });
+    document.getElementById('trendLocationFilter').addEventListener('change', () => {
+        loadDailyTrend(
+            parseInt(document.getElementById('trendDaysFilter').value),
+            document.getElementById('trendLocationFilter').value
+        );
+    });
+});
+
+// ─── 1. LOAD BY-LOCATION ANALYTICS ──────────────────────────────────────────
+function loadAnalytics(window) {
+    fetch(`/api/analytics/by-location?window=${window}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.status !== 'success') return;
+            renderKPIs(res, window);
+            renderDonut(res);
+            renderEnergyBar(res);
+            renderCostBar(res);
+            renderTable(res, window);
+            loadHourlyHeat(window);
+        })
+        .catch(err => console.error('Analytics error:', err));
+}
+
+// ─── 2. KPI CARDS ────────────────────────────────────────────────────────────
+function renderKPIs(res, window) {
+    document.getElementById('aKpiTotalEnergy').innerText = `${res.total_energy_kwh.toFixed(1)} kWh`;
+    document.getElementById('aKpiTotalCost').innerText = `₹${res.total_cost_inr.toFixed(2)}`;
+    document.getElementById('aKpiLocations').innerText = res.locations.length;
+    document.getElementById('aKpiRate').innerText = `@ ₹${parseFloat(res.electricity_price_inr).toFixed(2)} / kWh`;
+    document.getElementById('aKpiWindow').innerText = WINDOW_LABELS[window] || window;
+    document.getElementById('tableWindowLabel').innerText = WINDOW_LABELS[window] || window;
+
+    if (res.locations.length > 0) {
+        const top = res.locations[0];
+        document.getElementById('aKpiTopLoc').innerText = top.location;
+        document.getElementById('aKpiTopPct').innerText = `${top.share_pct}% of total`;
+    }
+}
+
+// ─── 3. DONUT CHART ──────────────────────────────────────────────────────────
+function initAllCharts() {
+    // Donut
+    const ctxD = document.getElementById('consumptionDonut').getContext('2d');
+    donutChart = new Chart(ctxD, {
+        type: 'doughnut',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: LOCATION_COLORS, borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: { position: 'right', labels: { font: { size: 12, family: 'Inter' }, padding: 14, boxWidth: 14 } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)} kWh (${ctx.dataset.data.length > 0 ? ((ctx.raw / ctx.dataset.data.reduce((a,b)=>a+b,0))*100).toFixed(1) : 0}%)` } }
+            }
+        }
+    });
+
+    // Energy Bar
+    const ctxB = document.getElementById('energyBarChart').getContext('2d');
+    energyBarChart = new Chart(ctxB, {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Energy (kWh)', data: [], backgroundColor: LOCATION_COLORS, borderRadius: 6 }] },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw.toFixed(1)} kWh` } } },
+            scales: { x: { beginAtZero: true, title: { display: true, text: 'kWh' } }, y: { grid: { display: false } } }
+        }
+    });
+
+    // Cost Bar
+    const ctxC = document.getElementById('costBarChart').getContext('2d');
+    costBarChart = new Chart(ctxC, {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Cost (₹)', data: [], backgroundColor: LOCATION_COLORS.map(c => c + 'cc'), borderRadius: 6, borderSkipped: false }] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ₹${ctx.raw.toFixed(2)}` } } },
+            scales: { y: { beginAtZero: true, title: { display: true, text: '₹ (Rupees)' } }, x: { grid: { display: false } } }
+        }
+    });
+
+    // Daily Trend
+    const ctxT = document.getElementById('dailyTrendChart').getContext('2d');
+    dailyTrendChart = new Chart(ctxT, {
+        type: 'line',
+        data: { labels: [], datasets: [] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12 } }, tooltip: { mode: 'index', intersect: false } },
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Energy (kWh)' } },
+                x: { grid: { display: false } }
+            },
+            interaction: { mode: 'index', intersect: false }
+        }
+    });
+
+    // Hourly Heatmap (grouped bar)
+    const ctxH = document.getElementById('hourlyHeatChart').getContext('2d');
+    hourlyHeatChart = new Chart(ctxH, {
+        type: 'bar',
+        data: { labels: [], datasets: [] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12 } }, tooltip: { mode: 'index', intersect: false } },
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: 'Avg Power (kW)' } },
+                x: { title: { display: true, text: 'Hour of Day' }, grid: { display: false } }
+            }
+        }
+    });
+}
+
+// ─── 4. ENERGY BAR + COST BAR + DONUT UPDATE ─────────────────────────────────
+function renderDonut(res) {
+    const locs = res.locations;
+    donutChart.data.labels = locs.map(l => l.location);
+    donutChart.data.datasets[0].data = locs.map(l => l.total_energy_kwh);
+    donutChart.data.datasets[0].backgroundColor = LOCATION_COLORS.slice(0, locs.length);
+    donutChart.update();
+    document.getElementById('donutCenterValue').innerText = res.total_energy_kwh.toFixed(0);
+}
+
+function renderEnergyBar(res) {
+    const locs = [...res.locations].reverse(); // reverse for horizontal: biggest at top
+    energyBarChart.data.labels = locs.map(l => l.location);
+    energyBarChart.data.datasets[0].data = locs.map(l => l.total_energy_kwh);
+    energyBarChart.data.datasets[0].backgroundColor = LOCATION_COLORS.slice(0, locs.length).reverse();
+    energyBarChart.update();
+}
+
+function renderCostBar(res) {
+    const locs = res.locations;
+    costBarChart.data.labels = locs.map(l => l.location);
+    costBarChart.data.datasets[0].data = locs.map(l => l.cost_inr);
+    costBarChart.data.datasets[0].backgroundColor = LOCATION_COLORS.slice(0, locs.length).map(c => c + 'bb');
+    costBarChart.update();
+}
+
+// ─── 5. BREAKDOWN TABLE ───────────────────────────────────────────────────────
+function renderTable(res, window) {
+    const tbody = document.getElementById('locationTableBody');
+    if (!res.locations.length) {
+        tbody.innerHTML = `<tr><td colspan="11" class="text-center py-4 text-muted">No data for the selected time window.</td></tr>`;
+        return;
+    }
+
+    // Share bar max width = highest share %
+    const maxShare = res.locations[0].share_pct;
+
+    tbody.innerHTML = res.locations.map((loc, i) => {
+        const effBadge = loc.avg_power_factor >= 0.95
+            ? `<span class="badge badge-success">Excellent</span>`
+            : loc.avg_power_factor >= 0.90
+            ? `<span class="badge badge-warning">Good</span>`
+            : `<span class="badge badge-danger">Low PF</span>`;
+
+        const shareBarWidth = ((loc.share_pct / maxShare) * 100).toFixed(0);
+        const color = LOCATION_COLORS[i % LOCATION_COLORS.length];
+
+        return `
+        <tr>
+            <td><span class="rank-badge" style="background:${color}22;color:${color};">#${i + 1}</span></td>
+            <td>
+                <div class="loc-cell">
+                    <span class="loc-dot" style="background:${color};"></span>
+                    <strong>${loc.location}</strong>
+                </div>
+            </td>
+            <td>${loc.reading_count.toLocaleString()}</td>
+            <td>
+                <div class="energy-cell">
+                    <strong>${loc.total_energy_kwh.toFixed(1)}</strong>
+                    <div class="share-bar-bg"><div class="share-bar-fill" style="width:${shareBarWidth}%;background:${color};"></div></div>
+                </div>
+            </td>
+            <td><strong class="cost-val">₹${loc.cost_inr.toFixed(2)}</strong></td>
+            <td>
+                <span class="share-pill" style="background:${color}22;color:${color};">${loc.share_pct}%</span>
+            </td>
+            <td>${loc.avg_power_kw.toFixed(3)} kW</td>
+            <td><strong>${loc.peak_power_kw.toFixed(3)} kW</strong></td>
+            <td>${loc.avg_voltage.toFixed(1)} V</td>
+            <td>${loc.avg_power_factor.toFixed(3)}</td>
+            <td>${effBadge}</td>
+        </tr>`;
+    }).join('');
+
+    // Totals row
+    tbody.innerHTML += `
+        <tr class="totals-row">
+            <td colspan="3"><strong>TOTAL</strong></td>
+            <td><strong>${res.total_energy_kwh.toFixed(1)} kWh</strong></td>
+            <td><strong>₹${res.total_cost_inr.toFixed(2)}</strong></td>
+            <td><strong>100%</strong></td>
+            <td colspan="5" class="text-muted">— All locations combined</td>
+        </tr>`;
+}
+
+// ─── 6. DAILY TREND CHART ─────────────────────────────────────────────────────
+function loadDailyTrend(days, location) {
+    const url = `/api/analytics/daily-trend?days=${days}&location=${encodeURIComponent(location)}`;
+    fetch(url).then(r => r.json()).then(res => {
+        if (res.status !== 'success') return;
+
+        // Group by location → series
+        const daySet = new Set();
+        const locMap = {};
+        res.data.forEach(d => {
+            daySet.add(d.day);
+            if (!locMap[d.location]) locMap[d.location] = {};
+            locMap[d.location][d.day] = d.energy_kwh;
+        });
+
+        const days_labels = Array.from(daySet).sort();
+        const locations = Object.keys(locMap);
+
+        const datasets = locations.map((loc, i) => ({
+            label: loc,
+            data: days_labels.map(d => locMap[loc][d] ? parseFloat(locMap[loc][d].toFixed(2)) : 0),
+            borderColor: LOCATION_COLORS[i % LOCATION_COLORS.length],
+            backgroundColor: LOCATION_COLORS[i % LOCATION_COLORS.length] + '22',
+            fill: locations.length === 1,
+            tension: 0.3,
+            pointRadius: days_labels.length <= 14 ? 4 : 2,
+            borderWidth: 2
+        }));
+
+        dailyTrendChart.data.labels = days_labels.map(d => d.slice(5)); // MM-DD
+        dailyTrendChart.data.datasets = datasets;
+        dailyTrendChart.update();
+    });
+}
+
+// ─── 7. HOURLY HEATMAP ────────────────────────────────────────────────────────
+function loadHourlyHeat(window) {
+    // Fetch hourly avg power per location from statistics-like query
+    fetch(`/api/analytics/by-location?window=${window}`)
+        .then(() => {
+            // Use separate dedicated hourly endpoint via readings
+            return fetch(`/api/readings?limit=2000&order=desc`);
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (!res.data) return;
+
+            const hours = Array.from({length: 24}, (_, i) => `${String(i).padStart(2,'0')}:00`);
+            const locMap = {};
+
+            res.data.forEach(row => {
+                const ts = row.timestamp || '';
+                const hourStr = ts.split(' ')[1]?.slice(0,2);
+                if (!hourStr) return;
+                const hour = `${hourStr}:00`;
+                const loc = row.location;
+                if (!locMap[loc]) locMap[loc] = {};
+                if (!locMap[loc][hour]) locMap[loc][hour] = [];
+                locMap[loc][hour].push(row.power_kw);
+            });
+
+            const locations = Object.keys(locMap);
+            const datasets = locations.map((loc, i) => ({
+                label: loc,
+                data: hours.map(h => {
+                    const vals = locMap[loc][h] || [];
+                    return vals.length ? parseFloat((vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(3)) : 0;
+                }),
+                backgroundColor: LOCATION_COLORS[i % LOCATION_COLORS.length] + 'cc',
+                borderRadius: 3,
+            }));
+
+            hourlyHeatChart.data.labels = hours;
+            hourlyHeatChart.data.datasets = datasets;
+            hourlyHeatChart.update();
+        });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}EnerTrack - Electricity Data Collection System{% endblock %}</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="brand">
+                    <i class="fa-solid fa-bolt brand-icon"></i>
+                    <div class="brand-text">
+                        <h2>EnerTrack</h2>
+                        <span class="tagline">Collect • Understand • Save</span>
+                    </div>
+                </div>
+                <button class="mobile-close-btn" id="mobileCloseBtn">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="system-status">
+                <span class="status-indicator online"></span>
+                <span class="status-text">System Online</span>
+            </div>
+
+            <nav class="sidebar-nav">
+                <ul>
+                    <li class="{% if active_page == 'overview' %}active{% endif %}">
+                        <a href="{{ url_for('page_overview') }}">
+                            <i class="fa-solid fa-house"></i>
+                            <span>Overview</span>
+                        </a>
+                    </li>
+                    <li class="{% if active_page == 'collection' %}active{% endif %}">
+                        <a href="{{ url_for('page_collection') }}">
+                            <i class="fa-solid fa-inbox"></i>
+                            <span>Data Collection</span>
+                        </a>
+                    </li>
+                    <li class="{% if active_page == 'live' %}active{% endif %}">
+                        <a href="{{ url_for('page_live') }}">
+                            <i class="fa-solid fa-bolt-lightning"></i>
+                            <span>Live Monitor</span>
+                        </a>
+                    </li>
+                    <li class="{% if active_page == 'analytics' %}active{% endif %}">
+                        <a href="{{ url_for('page_analytics') }}">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span>Analytics</span>
+                        </a>
+                    </li>
+                    <li class="{% if active_page == 'alerts' %}active{% endif %}">
+                        <a href="{{ url_for('page_alerts') }}">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Alerts</span>
+                        </a>
+                    </li>
+                    <li class="{% if active_page == 'reports' %}active{% endif %}">
+                        <a href="{{ url_for('page_reports') }}">
+                            <i class="fa-regular fa-file-lines"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    <li class="{% if active_page == 'settings' %}active{% endif %}">
+                        <a href="{{ url_for('page_settings') }}">
+                            <i class="fa-solid fa-gear"></i>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="student-tag">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span>CSE Project Module</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <div class="main-wrapper">
+            <!-- Top Navbar -->
+            <header class="top-navbar">
+                <div class="navbar-left">
+                    <button class="mobile-toggle-btn" id="sidebarToggle">
+                        <i class="fa-solid fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">{% block header_title %}EnerTrack{% endblock %}</h1>
+                </div>
+                <div class="navbar-right">
+                    <!-- Sound Alert Toggle Button -->
+                    <button class="sound-toggle-btn" id="soundAlertBtn" type="button" title="Audio Alerts for High Consumption">
+                        <i class="fa-solid fa-volume-xmark" id="soundIcon"></i>
+                        <span id="soundLabel">Sound Off</span>
+                    </button>
+
+                    <div class="live-ticker-badge" id="navbarLiveTicker">
+                        <span class="pulse-dot"></span>
+                        <span class="ticker-text">Live: <strong id="navPowerVal">1.10 kW</strong></span>
+                    </div>
+                    <div class="user-profile">
+                        <i class="fa-solid fa-user-gear"></i>
+                        <span>Admin</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Floating High Consumption Sound Alert Banner -->
+            <div class="floating-overconsumption-alert" id="floatingOverconsumptionAlert">
+                <div class="overconsumption-alert-icon">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div class="overconsumption-alert-text">
+                    <strong>High Electricity Consumption Alert!</strong>
+                    <p>Current load <span id="floatingAlertPowerVal">-- kW</span> exceeds safety threshold (<span id="floatingAlertThreshVal">2.0 kW</span>).</p>
+                </div>
+                <button class="btn-silence-alert" id="btnSilenceFloatingAlert" type="button">Silence</button>
+            </div>
+
+            <!-- Sound Permission Modal -->
+            <div class="sound-modal-overlay" id="soundModalOverlay">
+                <div class="sound-modal">
+                    <div class="sound-modal-header">
+                        <div class="sound-modal-icon">
+                            <i class="fa-solid fa-volume-high"></i>
+                        </div>
+                        <h3>Enable Over-Consumption Sound Alerts?</h3>
+                        <p>EnerTrack can alert you with an audible chime whenever real-time electricity consumption exceeds your safe power threshold.</p>
+                    </div>
+                    <div class="sound-modal-body">
+                        <div class="flex-between mb-2">
+                            <span style="font-size: 0.88rem; font-weight: 600; color: #334155;">Alert Threshold:</span>
+                            <strong id="modalThresholdDisplay" style="color: var(--accent-color); font-size: 0.95rem;">2.0 kW</strong>
+                        </div>
+                        <div class="sound-threshold-selector">
+                            <div class="threshold-chip" data-val="1.5">1.5 kW</div>
+                            <div class="threshold-chip active" data-val="2.0">2.0 kW (Std)</div>
+                            <div class="threshold-chip" data-val="3.0">3.0 kW</div>
+                            <div class="threshold-chip" data-val="5.0">5.0 kW</div>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <button type="button" class="btn btn-outline" id="btnTestChime" style="padding: 0.35rem 0.85rem; font-size: 0.82rem;">
+                                <i class="fa-solid fa-play"></i> Test Sound Chime
+                            </button>
+                        </div>
+                    </div>
+                    <div class="sound-modal-actions">
+                        <button type="button" class="btn btn-outline" id="btnMuteSound">
+                            <i class="fa-solid fa-volume-xmark"></i> Keep Muted
+                        </button>
+                        <button type="button" class="btn btn-primary" id="btnAllowSound">
+                            <i class="fa-solid fa-volume-high"></i> Enable Sound Alerts
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notification Toast Container -->
+            <div id="toastContainer" class="toast-container"></div>
+
+            <!-- Page Content -->
+            <main class="content-area">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Layout Base JS -->
+    <script>
+        document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+            document.getElementById('sidebar')?.classList.toggle('active');
+        });
+        document.getElementById('mobileCloseBtn')?.addEventListener('click', () => {
+            document.getElementById('sidebar')?.classList.remove('active');
+        });
+    </script>
+    <!-- Sound Alerts Engine -->
+    <script src="{{ url_for('static', filename='js/sound_alerts.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,155 @@
+{% extends 'layout.html' %}
+
+{% block title %}Settings - EnerTrack{% endblock %}
+{% block header_title %}System Settings{% endblock %}
+
+{% block content %}
+<div class="page-header-container">
+    <div>
+        <h2 class="section-title">⚙ Settings</h2>
+        <p class="section-subtitle">Configure system parameters, tariff rates, and alert thresholds.</p>
+    </div>
+</div>
+
+<div class="grid-2col mb-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-sliders text-primary"></i> General Configuration</h3>
+        </div>
+        <div class="card-body">
+            <form id="settingsForm">
+                <div class="form-group mb-3">
+                    <label for="electricityPrice"><i class="fa-solid fa-indian-rupee-sign"></i> Electricity Price (₹ / kWh)</label>
+                    <input type="number" step="0.01" id="electricityPrice" class="form-control" value="8.00">
+                    <small class="form-hint">Indian residential tariff (avg ₹6–₹12 / kWh)</small>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="defaultMeter">Default Location / Meter Name</label>
+                    <input type="text" id="defaultMeter" class="form-control" value="Main Meter">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="refreshInterval">Data Refresh Interval (seconds)</label>
+                    <input type="number" id="refreshInterval" class="form-control" value="5">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="alertThreshold">High Power Alert Threshold (kW)</label>
+                    <input type="number" step="0.5" id="alertThreshold" class="form-control" value="2.0">
+                    <small class="form-hint">Power level that triggers over-consumption alerts & sound warning (default: 2.0 kW)</small>
+                </div>
+
+                <!-- Sound Alerts Configuration -->
+                <div class="p-3 mb-3" style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                    <div class="flex-between mb-2">
+                        <label for="chkSoundAlertEnabled" style="font-weight: 700; margin: 0; cursor: pointer;">
+                            <i class="fa-solid fa-volume-high text-primary"></i> Audible Over-Consumption Alarm
+                        </label>
+                        <input type="checkbox" id="chkSoundAlertEnabled" style="width: 18px; height: 18px; cursor: pointer;">
+                    </div>
+                    <small class="text-muted d-block mb-2">Plays a distinct acoustic warning chime when real-time electrical draw exceeds threshold.</small>
+                    <button type="button" class="btn btn-outline btn-sm" id="btnTestSoundSettings" style="font-size: 0.8rem;">
+                        <i class="fa-solid fa-play"></i> Test Alarm Chime
+                    </button>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Settings
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-shield-halved text-accent"></i> Validation Limits</h3>
+        </div>
+        <div class="card-body">
+            <ul class="list-group">
+                <li class="list-group-item flex-between">
+                    <span>Voltage Range</span>
+                    <strong>180 V – 260 V</strong>
+                </li>
+                <li class="list-group-item flex-between">
+                    <span>Current Limit</span>
+                    <strong>0 A – 100 A</strong>
+                </li>
+                <li class="list-group-item flex-between">
+                    <span>Power Limit</span>
+                    <strong>0 kW – 100 kW</strong>
+                </li>
+                <li class="list-group-item flex-between">
+                    <span>Power Factor Range</span>
+                    <strong>0.00 – 1.00</strong>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const chkSound = document.getElementById('chkSoundAlertEnabled');
+    const btnTest = document.getElementById('btnTestSoundSettings');
+
+    // Init sound settings from localStorage & window.enerTrackAudio
+    if (chkSound) {
+        chkSound.checked = (localStorage.getItem('enertrack_audio_allowed') === 'true');
+    }
+
+    btnTest?.addEventListener('click', () => {
+        if (window.enerTrackAudio) {
+            window.enerTrackAudio.initContext();
+            window.enerTrackAudio.playAlarmSound();
+        }
+    });
+
+    fetch('/api/settings')
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success' && res.data) {
+                if (res.data.electricity_price) document.getElementById('electricityPrice').value = res.data.electricity_price;
+                if (res.data.default_meter) document.getElementById('defaultMeter').value = res.data.default_meter;
+                if (res.data.refresh_interval) document.getElementById('refreshInterval').value = res.data.refresh_interval;
+                if (res.data.alert_threshold) document.getElementById('alertThreshold').value = res.data.alert_threshold;
+            }
+        });
+
+    document.getElementById('settingsForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const thresholdVal = parseFloat(document.getElementById('alertThreshold').value) || 2.0;
+        const soundEnabled = chkSound ? chkSound.checked : false;
+
+        localStorage.setItem('enertrack_audio_allowed', soundEnabled ? 'true' : 'false');
+        localStorage.setItem('enertrack_sound_threshold', thresholdVal.toString());
+
+        if (window.enerTrackAudio) {
+            window.enerTrackAudio.isAllowed = soundEnabled;
+            window.enerTrackAudio.thresholdKw = thresholdVal;
+            window.enerTrackAudio.updateUI();
+        }
+
+        const payload = {
+            electricity_price: document.getElementById('electricityPrice').value,
+            default_meter: document.getElementById('defaultMeter').value,
+            refresh_interval: document.getElementById('refreshInterval').value,
+            alert_threshold: thresholdVal.toString(),
+            sound_alert_threshold: thresholdVal.toString()
+        };
+
+        fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(res => {
+            alert('Settings and Sound Alert configuration saved successfully!');
+        });
+    });
+});
+</script>
+{% endblock %}

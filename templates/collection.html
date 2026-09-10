@@ -1,0 +1,371 @@
+{% extends 'layout.html' %}
+
+{% block title %}Data Collection - EnerTrack{% endblock %}
+{% block header_title %}Data Collection{% endblock %}
+
+{% block content %}
+<div class="page-header-container">
+    <div>
+        <h2 class="section-title">Data Collection</h2>
+        <p class="section-subtitle">Record and manage electricity consumption readings.</p>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-outline" id="btnExportCsv">
+            <i class="fa-solid fa-download"></i> Export Data
+        </button>
+    </div>
+</div>
+
+<!-- KPI Cards: Today's Collection -->
+<div class="kpi-grid">
+    <div class="kpi-card" style="border-top: 4px solid var(--accent-color);">
+        <div class="kpi-icon icon-blue">
+            <i class="fa-solid fa-plug-circle-bolt"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Total Consumption (All-Time)</span>
+            <h3 class="kpi-value" id="kpiTotalEnergy">-- kWh</h3>
+            <span class="kpi-subtext" id="kpiTotalCost">Total Cost: -- ₹</span>
+        </div>
+    </div>
+    <div class="kpi-card" style="border-top: 4px solid #10b981;">
+        <div class="kpi-icon icon-green">
+            <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Energy Consumed Today</span>
+            <h3 class="kpi-value" id="kpiEnergyCollected">-- kWh</h3>
+            <span class="kpi-subtext">Today's cumulative energy</span>
+        </div>
+    </div>
+    <div class="kpi-card kpi-card-cost" style="border-top: 4px solid #7c3aed;">
+        <div class="kpi-icon icon-rupee">
+            <i class="fa-solid fa-indian-rupee-sign"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Today's Power Cost</span>
+            <h3 class="kpi-value" id="kpiCostToday">-- ₹</h3>
+            <span class="kpi-subtext" id="kpiCostRate">@ ₹8.00 / kWh</span>
+        </div>
+    </div>
+    <div class="kpi-card" style="border-top: 4px solid #f59e0b;">
+        <div class="kpi-icon icon-orange">
+            <i class="fa-solid fa-chart-simple"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Peak Power</span>
+            <h3 class="kpi-value" id="kpiPeakPower">-- kW</h3>
+            <span class="kpi-subtext">Highest recorded today</span>
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-icon icon-gray" style="background: #f1f5f9; color: #475569;">
+            <i class="fa-solid fa-list-check"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Total Readings</span>
+            <h3 class="kpi-value" id="kpiTotalReadings">--</h3>
+            <span class="kpi-subtext">Recorded in database</span>
+        </div>
+    </div>
+</div>
+
+<!-- Top Grid: Form & Live Status -->
+<div class="grid-2col mb-4">
+    <!-- Add Energy Reading Card -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-circle-plus text-primary"></i> Add Energy Reading</h3>
+            <span class="badge badge-soft-primary">Manual Entry</span>
+        </div>
+        <div class="card-body">
+            <form id="readingForm" novalidate>
+                <input type="hidden" id="editReadingId" value="">
+                
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label for="inputDate"><i class="fa-regular fa-calendar"></i> Date & Time</label>
+                        <input type="datetime-local" id="inputTimestamp" class="form-control" required>
+                    </div>
+                    <div class="form-group col-6">
+                        <label for="inputLocation"><i class="fa-solid fa-location-dot"></i> Meter / Location</label>
+                        <select id="inputLocation" class="form-control" required>
+                            <option value="Main Meter">Main Meter</option>
+                            <option value="Lab Building A">Lab Building A</option>
+                            <option value="Library Wing">Library Wing</option>
+                            <option value="Computer Center">Computer Center</option>
+                            <option value="Cafeteria Block">Cafeteria Block</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <div class="form-row">
+                    <div class="form-group col-4">
+                        <label for="inputVoltage">Voltage (V)</label>
+                        <input type="number" step="0.1" id="inputVoltage" class="form-control" placeholder="e.g. 230" required>
+                        <small class="form-hint">Valid: 180 – 260 V</small>
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="inputCurrent">Current (A)</label>
+                        <input type="number" step="0.01" id="inputCurrent" class="form-control" placeholder="e.g. 5.2" required>
+                        <small class="form-hint">Valid: 0 – 100 A</small>
+                    </div>
+                    <div class="form-group col-4">
+                        <label for="inputPowerFactor">Power Factor</label>
+                        <input type="number" step="0.01" id="inputPowerFactor" class="form-control" value="0.95" placeholder="0 – 1" required>
+                        <small class="form-hint">Valid: 0.0 – 1.0</small>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <label for="inputPower">Power (kW) <span class="badge-calculated">Auto Calculated</span></label>
+                        <input type="number" step="0.001" id="inputPower" class="form-control bg-light" placeholder="Calculated automatically" required>
+                        <small class="form-hint">Calculated = (V × I × PF) / 1000</small>
+                    </div>
+                    <div class="form-group col-6">
+                        <label for="inputEnergy">Energy Consumption (kWh)</label>
+                        <input type="number" step="0.01" id="inputEnergy" class="form-control" placeholder="e.g. 38.6" required>
+                        <small class="form-hint">Valid: ≥ 0 kWh</small>
+                    </div>
+                </div>
+
+                <div id="formErrorAlert" class="alert alert-danger d-none"></div>
+
+                <div class="form-actions mt-3">
+                    <button type="submit" class="btn btn-primary" id="btnSubmitForm">
+                        <i class="fa-solid fa-plus"></i> <span id="submitBtnText">Add Reading</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="btnClearForm">
+                        <i class="fa-solid fa-rotate-left"></i> Clear
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Live Collection Status & CSV Card side-by-side or stacked -->
+    <div class="flex-column gap-4">
+        <!-- Live Status Card -->
+        <div class="card shadow-sm">
+            <div class="card-header border-bottom-0">
+                <h3><i class="fa-solid fa-satellite-dish text-success"></i> Collection Status</h3>
+                <span class="badge badge-success"><i class="fa-solid fa-circle"></i> Online</span>
+            </div>
+            <div class="card-body pt-0">
+                <div class="live-status-box">
+                    <div class="live-status-item">
+                        <span class="label">Last Reading:</span>
+                        <span class="val" id="liveLastTime">--:--:--</span>
+                    </div>
+                    <div class="live-status-item">
+                        <span class="label">Next Update:</span>
+                        <span class="val text-primary"><strong id="liveCountdown">5</strong> seconds</span>
+                    </div>
+                    <div class="live-status-item">
+                        <span class="label">Readings Today:</span>
+                        <span class="val" id="liveReadingsCount">--</span>
+                    </div>
+                </div>
+
+                <div class="live-stream-preview">
+                    <div class="demo-tag">
+                        <i class="fa-solid fa-triangle-exclamation"></i> <strong>Demo Data</strong> (Simulated Meter Stream)
+                    </div>
+                    <div class="stream-values-grid mt-2">
+                        <div><span class="s-label">V:</span> <span id="demoV">230 V</span></div>
+                        <div><span class="s-label">I:</span> <span id="demoI">5.2 A</span></div>
+                        <div><span class="s-label">P:</span> <span id="demoP">1.13 kW</span></div>
+                        <div><span class="s-label">PF:</span> <span id="demoPF">0.94</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import Electricity Data CSV Card -->
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h3><i class="fa-solid fa-file-csv text-accent"></i> Import Electricity Data</h3>
+                <small class="text-muted">CSV Format</small>
+            </div>
+            <div class="card-body">
+                <div class="drop-zone" id="dropZone">
+                    <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                    <p class="drop-text">Drag and drop a CSV file here or <span class="browse-link">browse</span></p>
+                    <small class="text-muted">Supported: timestamp, location, voltage, current, power_kw, energy_kwh, power_factor</small>
+                    <input type="file" id="csvFileInput" accept=".csv" class="d-none">
+                </div>
+                <div class="text-right mt-2 flex-between">
+                    <a href="{{ url_for('static', filename='../data/sample_energy_data.csv') }}" class="btn-link" download>
+                        <i class="fa-solid fa-file-arrow-down"></i> Download Sample CSV
+                    </a>
+                </div>
+                <!-- Kaggle Import Section -->
+                <div class="kaggle-import-box mt-3">
+                    <div class="kaggle-header">
+                        <span class="kaggle-badge"><i class="fa-solid fa-database"></i> Kaggle Dataset</span>
+                        <span class="text-muted" style="font-size:0.8rem;">Energy Consumption Dataset (India)</span>
+                    </div>
+                    <p class="text-muted mb-2" style="font-size:0.82rem;">
+                        Import the bundled <strong>Kaggle energy consumption dataset</strong> (residential &amp; commercial data, 30+ days).
+                    </p>
+                    <button class="btn btn-kaggle" id="btnImportKaggle">
+                        <i class="fa-solid fa-cloud-arrow-down"></i> Import Kaggle Dataset
+                    </button>
+                    <div id="kaggleImportStatus" class="mt-2 d-none"></div>
+                </div>
+
+                <!-- Live Internet Telemetry Ingestion Section -->
+                <div class="kaggle-import-box mt-3" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; border: 1px solid rgba(255,255,255,0.15);">
+                    <div class="kaggle-header">
+                        <span class="badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.4);"><i class="fa-solid fa-satellite-dish"></i> Live Internet Stream</span>
+                        <span style="font-size:0.8rem; color: #94a3b8;">National Grid ESO Open Telemetry</span>
+                    </div>
+                    <p style="color:#cbd5e1; margin-bottom: 0.5rem; font-size:0.82rem;">
+                        Pull live real-time electricity telemetry directly from the web, examine load metrics, and ingest into database.
+                    </p>
+                    <button class="btn btn-primary w-100" id="btnCollectionFetchInternet" onclick="collectionFetchInternet()" style="font-size:0.85rem; padding: 0.4rem 0.75rem;">
+                        <i class="fa-solid fa-bolt"></i> Fetch & Ingest Real-Time Internet Data
+                    </button>
+                    <div id="collectionInternetStatus" class="mt-2 d-none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSV Validation Preview Modal / Card (Hidden by default until upload) -->
+<div class="card shadow-sm mb-4 d-none" id="csvPreviewCard">
+    <div class="card-header bg-light-blue">
+        <h3><i class="fa-solid fa-list-check"></i> CSV Import Preview & Validation Result</h3>
+        <button type="button" class="btn-close" id="btnClosePreview"></button>
+    </div>
+    <div class="card-body">
+        <div class="validation-summary mb-3" id="validationSummary">
+            <!-- Dynamic validation count badges -->
+        </div>
+
+        <div class="table-responsive max-h-300 mb-3">
+            <table class="table table-bordered table-striped" id="previewTable">
+                <thead>
+                    <tr>
+                        <th>Row</th>
+                        <th>Timestamp</th>
+                        <th>Location</th>
+                        <th>Voltage (V)</th>
+                        <th>Current (A)</th>
+                        <th>Power (kW)</th>
+                        <th>Energy (kWh)</th>
+                        <th>Power Factor</th>
+                        <th>Validation Result</th>
+                    </tr>
+                </thead>
+                <tbody id="previewTableBody">
+                    <!-- Dynamic preview rows -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex-between">
+            <small class="text-muted">Displaying first preview rows.</small>
+            <button class="btn btn-success" id="btnConfirmImport">
+                <i class="fa-solid fa-file-import"></i> Import Valid Records
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section: Collection Activity & Power Consumption -->
+<div class="grid-2col mb-4">
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-chart-column text-primary"></i> Readings Collected Today</h3>
+            <small class="text-muted">Hourly Count</small>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="readingsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h3><i class="fa-solid fa-chart-line text-accent"></i> Power Consumption</h3>
+            <small class="text-muted">Readings Over Time (kW)</small>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="powerChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Readings Table -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header flex-between flex-wrap gap-2">
+        <div>
+            <h3><i class="fa-solid fa-table-list text-primary"></i> Recent Readings</h3>
+            <small class="text-muted">Database Records</small>
+        </div>
+
+        <div class="table-filters flex-wrap gap-2">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="tableSearchInput" placeholder="Search location or date..." class="form-control">
+            </div>
+
+            <select id="locationFilter" class="form-control">
+                <option value="All">All Locations</option>
+                <option value="Main Meter">Main Meter</option>
+                <option value="Lab Building A">Lab Building A</option>
+                <option value="Library Wing">Library Wing</option>
+                <option value="Computer Center">Computer Center</option>
+                <option value="Cafeteria Block">Cafeteria Block</option>
+            </select>
+
+            <select id="sortByFilter" class="form-control">
+                <option value="timestamp">Sort by Date (Newest)</option>
+                <option value="voltage">Sort by Voltage</option>
+                <option value="power_kw">Sort by Power</option>
+                <option value="energy_kwh">Sort by Energy</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="readingsTable">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Location</th>
+                        <th>Voltage (V)</th>
+                        <th>Current (A)</th>
+                        <th>Power (kW)</th>
+                        <th>Energy (kWh)</th>
+                        <th>Power Factor</th>
+                        <th>Status</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="readingsTableBody">
+                    <tr>
+                        <td colspan="9" class="text-center py-4 text-muted">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Loading readings data...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/collection.js') }}"></script>
+{% endblock %}

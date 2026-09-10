@@ -1,0 +1,404 @@
+{% extends 'layout.html' %}
+{% block title %}AI Alerts & Over-Consumption Analysis - EnerTrack{% endblock %}
+{% block header_title %}AI Energy Alerts{% endblock %}
+
+{% block content %}
+<div class="page-header-container">
+    <div>
+        <h2 class="section-title">🚨 AI Over-Consumption Analysis & Alerts</h2>
+        <p class="section-subtitle">Autonomous neural monitor analyzing today's electricity consumption, detecting over-use spikes, location culprits, and financial waste.</p>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-primary" id="btnReanalyze" onclick="fetchAiAlerts()">
+            <i class="fa-solid fa-arrows-rotate"></i> Re-Analyze Today with AI
+        </button>
+    </div>
+</div>
+
+<!-- Dynamic AI Hero Over-Consumption Banner -->
+<div class="ai-hero-banner critical" id="aiHeroBanner">
+    <div class="ai-banner-content">
+        <div class="ai-avatar-icon" id="aiHeroIcon">
+            <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="ai-banner-text">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.35rem;">
+                <h3 id="aiAlertTitle" style="margin: 0;">Analyzing today's electricity consumption...</h3>
+                <span class="badge badge-soft-danger" id="aiSeverityBadge">CRITICAL</span>
+            </div>
+            <p id="aiSummaryMsg" style="font-size: 0.95rem; color: #334155; margin-bottom: 0.6rem;">
+                Running multi-factor comparison against 30-day baseline...
+            </p>
+            <div class="ai-banner-meta">
+                <span class="ai-pill" id="aiPillProjected"><i class="fa-solid fa-bolt"></i> Projected: <strong>-- kWh</strong></span>
+                <span class="ai-pill" id="aiPillBaseline"><i class="fa-solid fa-chart-line"></i> Baseline: <strong>-- kWh</strong></span>
+                <span class="ai-pill" id="aiPillWaste"><i class="fa-solid fa-fire"></i> Waste: <strong>-- ₹</strong></span>
+                <span class="ai-pill" id="aiPillTimestamp"><i class="fa-regular fa-clock"></i> Updated: Just now</span>
+            </div>
+        </div>
+    </div>
+    <div class="efficiency-card" style="min-width: 140px;">
+        <div class="grade-circle grade-d" id="aiGradeCircle">D</div>
+        <span style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: #64748b;">Efficiency Score</span>
+        <strong id="aiScoreVal" style="font-size: 1.1rem; color: var(--text-dark);">54 / 100</strong>
+    </div>
+</div>
+
+<!-- 4-Card Comparative Metric Grid -->
+<div class="kpi-grid kpi-grid-4 mb-4">
+    <div class="kpi-card" style="border-top: 4px solid var(--accent-color);">
+        <div class="kpi-icon icon-blue">
+            <i class="fa-solid fa-plug-circle-bolt"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Today's Consumption</span>
+            <h3 class="kpi-value" id="kpiTodayEnergy">-- kWh</h3>
+            <span class="kpi-subtext" id="kpiTodayCost">Cost: -- ₹</span>
+        </div>
+    </div>
+
+    <div class="kpi-card" style="border-top: 4px solid #64748b;">
+        <div class="kpi-icon icon-gray" style="background: #f1f5f9; color: #475569;">
+            <i class="fa-solid fa-scale-balanced"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">30-Day Normal Baseline</span>
+            <h3 class="kpi-value" id="kpiBaselineEnergy">-- kWh</h3>
+            <span class="kpi-subtext" id="kpiBaselineCost">Expected: -- ₹ / day</span>
+        </div>
+    </div>
+
+    <div class="kpi-card" id="kpiVarianceCard" style="border-top: 4px solid #ef4444;">
+        <div class="kpi-icon icon-orange" id="kpiVarianceIcon">
+            <i class="fa-solid fa-arrow-trend-up"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Over-Consumption Deviation</span>
+            <h3 class="kpi-value" id="kpiExcessPct">--%</h3>
+            <span class="kpi-subtext" id="kpiExcessKwh">-- kWh surplus load</span>
+        </div>
+    </div>
+
+    <div class="kpi-card kpi-card-cost" style="border-top: 4px solid #7c3aed;">
+        <div class="kpi-icon icon-rupee">
+            <i class="fa-solid fa-indian-rupee-sign"></i>
+        </div>
+        <div class="kpi-info">
+            <span class="kpi-label">Financial Waste (Projected)</span>
+            <h3 class="kpi-value" id="kpiMonthlyWaste">-- ₹</h3>
+            <span class="kpi-subtext" id="kpiWasteSub">Estimated unmitigated / mo</span>
+        </div>
+    </div>
+</div>
+
+<!-- Diagnostic Grid: Location Attribution & Power Quality -->
+<div class="grid-2col mb-4" style="grid-template-columns: 1.6fr 1.2fr;">
+    <!-- Location Over-Consumption Attribution -->
+    <div class="card shadow-sm">
+        <div class="card-header flex-between">
+            <div>
+                <h3><i class="fa-solid fa-sitemap text-primary"></i> Location Over-Consumption Breakdown</h3>
+                <small class="text-muted">Comparing Today's Share vs Baseline Expectations</small>
+            </div>
+            <span class="badge badge-soft-primary">AI Attribution</span>
+        </div>
+        <div class="card-body">
+            <!-- Culprit Spotlight Alert Box -->
+            <div id="culpritAlertBox" class="alert alert-warning mb-3" style="display: flex; align-items: center; gap: 0.75rem; border-radius: var(--radius-sm);">
+                <i class="fa-solid fa-fire text-danger" style="font-size: 1.3rem;"></i>
+                <div style="font-size: 0.88rem;">
+                    <strong>Primary Over-consumption Culprit: </strong>
+                    <span id="culpritText">Identifying top load contributor...</span>
+                </div>
+            </div>
+
+            <!-- List of Location Progress Meters -->
+            <div id="applianceMetersContainer">
+                <div class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing telemetry by location...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Power Quality & Electrical Health -->
+    <div class="card shadow-sm">
+        <div class="card-header flex-between">
+            <div>
+                <h3><i class="fa-solid fa-wave-square text-accent"></i> Electrical Health & Grid Telemetry</h3>
+                <small class="text-muted">Voltage, Peak Load, and Power Factor</small>
+            </div>
+        </div>
+        <div class="card-body">
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="p-3" style="background: #f8fafc; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <div class="flex-between mb-1">
+                        <span style="font-size: 0.85rem; color: #64748b;"><i class="fa-solid fa-bolt"></i> Peak Power Today</span>
+                        <strong id="healthPeakPower" style="font-size: 1.1rem; color: var(--text-dark);">-- kW</strong>
+                    </div>
+                    <small class="text-muted" id="healthPeakSub">Baseline daily peak: -- kW</small>
+                </div>
+
+                <div class="p-3" style="background: #f8fafc; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <div class="flex-between mb-1">
+                        <span style="font-size: 0.85rem; color: #64748b;"><i class="fa-solid fa-gauge"></i> Average Power Factor</span>
+                        <strong id="healthPf" style="font-size: 1.1rem; color: var(--text-dark);">--</strong>
+                    </div>
+                    <small class="text-muted" id="healthPfSub">Target: ≥ 0.95 (Prevents utility penalty)</small>
+                </div>
+
+                <div class="p-3" style="background: #f8fafc; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <div class="flex-between mb-1">
+                        <span style="font-size: 0.85rem; color: #64748b;"><i class="fa-solid fa-triangle-exclamation"></i> Anomalies Detected Today</span>
+                        <strong id="healthAnomalies" style="font-size: 1.1rem; color: #ef4444;">-- Events</strong>
+                    </div>
+                    <small class="text-muted">Voltage drops, over-voltage, & load spikes</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section: AI Smart Actionable Recommendations -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header flex-between">
+        <div>
+            <h3><i class="fa-solid fa-lightbulb text-warning"></i> AI Actionable Recommendations & Cost Optimization</h3>
+            <small class="text-muted">Specific measures generated by EnerTrack Neural Energy Analyzer to curtail over-consumption</small>
+        </div>
+        <span class="badge badge-soft-success"><i class="fa-solid fa-indian-rupee-sign"></i> High ROI Steps</span>
+    </div>
+    <div class="card-body">
+        <div class="recs-grid" id="recsContainer">
+            <div class="text-center py-4 text-muted col-12"><i class="fa-solid fa-spinner fa-spin"></i> Generating recommendations...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Section: Live System Threshold & Anomaly Alerts Table -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header flex-between">
+        <div>
+            <h3><i class="fa-solid fa-bell text-danger"></i> Active Threshold Anomalies & Spike Log</h3>
+            <small class="text-muted">Recorded incidents of voltage instability, current surges, and low power factor</small>
+        </div>
+        <span class="badge badge-soft-danger" id="badgeTotalAnomalies">0 Alerts</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table mb-0" style="font-size: 0.88rem;">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Location</th>
+                        <th>Power (kW)</th>
+                        <th>Voltage</th>
+                        <th>Triggered Anomaly</th>
+                        <th>Severity</th>
+                    </tr>
+                </thead>
+                <tbody id="thresholdAlertsTable">
+                    <tr><td colspan="6" class="text-center py-4 text-muted"><i class="fa-solid fa-spinner fa-spin"></i> Checking telemetry alerts...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const LOC_COLORS = ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899'];
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchAiAlerts();
+});
+
+function fetchAiAlerts() {
+    const btn = document.getElementById('btnReanalyze');
+    if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analyzing...';
+        btn.disabled = true;
+    }
+
+    fetch('/api/alerts/ai-analysis')
+        .then(r => r.json())
+        .then(data => {
+            if (data.status !== 'success') return;
+            renderAiDashboard(data);
+        })
+        .catch(err => console.error('Error fetching AI alerts:', err))
+        .finally(() => {
+            if (btn) {
+                btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Re-Analyze Today with AI';
+                btn.disabled = false;
+            }
+        });
+}
+
+function renderAiDashboard(data) {
+    // 1. Top Hero Banner
+    const banner = document.getElementById('aiHeroBanner');
+    const heroIcon = document.getElementById('aiHeroIcon');
+    const titleEl = document.getElementById('aiAlertTitle');
+    const badgeEl = document.getElementById('aiSeverityBadge');
+    const summaryEl = document.getElementById('aiSummaryMsg');
+
+    titleEl.innerText = data.alert_title;
+    summaryEl.innerText = data.message;
+    badgeEl.innerText = data.severity;
+
+    if (data.severity === 'CRITICAL') {
+        banner.className = 'ai-hero-banner critical';
+        badgeEl.className = 'badge badge-soft-danger';
+        heroIcon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+    } else if (data.severity === 'WARNING') {
+        banner.className = 'ai-hero-banner warning';
+        badgeEl.className = 'badge badge-soft-warning';
+        heroIcon.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>';
+    } else {
+        banner.className = 'ai-hero-banner optimal';
+        badgeEl.className = 'badge badge-soft-success';
+        heroIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+    }
+
+    document.getElementById('aiPillProjected').innerHTML = `<i class="fa-solid fa-bolt"></i> Projected: <strong>${data.projected_kwh} kWh</strong>`;
+    document.getElementById('aiPillBaseline').innerHTML = `<i class="fa-solid fa-chart-line"></i> Baseline: <strong>${data.baseline_daily_kwh} kWh</strong>`;
+    document.getElementById('aiPillWaste').innerHTML = `<i class="fa-solid fa-fire"></i> Excess Today: <strong>+₹${data.excess_cost_today_inr}</strong>`;
+
+    // Efficiency Grade Ring
+    const gradeCircle = document.getElementById('aiGradeCircle');
+    const scoreVal = document.getElementById('aiScoreVal');
+    gradeCircle.innerText = data.efficiency_grade;
+    scoreVal.innerText = `${data.efficiency_score} / 100`;
+
+    const gradeLow = data.efficiency_grade.toLowerCase().charAt(0);
+    gradeCircle.className = `grade-circle grade-${gradeLow}`;
+
+    // 2. Metric Grid
+    document.getElementById('kpiTodayEnergy').innerText = `${data.total_kwh} kWh`;
+    document.getElementById('kpiTodayCost').innerText = `Cost so far: ₹${data.total_cost.toFixed(2)}`;
+
+    document.getElementById('kpiBaselineEnergy').innerText = `${data.baseline_daily_kwh} kWh`;
+    document.getElementById('kpiBaselineCost').innerText = `Expected: ₹${data.baseline_cost_inr.toFixed(2)} / day`;
+
+    const excessSign = data.excess_pct >= 0 ? '+' : '';
+    document.getElementById('kpiExcessPct').innerText = `${excessSign}${data.excess_pct}%`;
+    document.getElementById('kpiExcessKwh').innerText = `${excessSign}${data.excess_kwh} kWh vs baseline`;
+
+    const varCard = document.getElementById('kpiVarianceCard');
+    const varIcon = document.getElementById('kpiVarianceIcon');
+    if (data.excess_pct >= 15) {
+        varCard.style.borderTopColor = '#ef4444';
+        varIcon.className = 'kpi-icon icon-red';
+    } else if (data.excess_pct >= 5) {
+        varCard.style.borderTopColor = '#f59e0b';
+        varIcon.className = 'kpi-icon icon-orange';
+    } else {
+        varCard.style.borderTopColor = '#10b981';
+        varIcon.className = 'kpi-icon icon-green';
+    }
+
+    document.getElementById('kpiMonthlyWaste').innerText = `₹${data.projected_monthly_waste_inr.toLocaleString()}`;
+
+    // 3. Culprit Spotlight
+    const culprit = data.primary_culprit;
+    const culpritBox = document.getElementById('culpritAlertBox');
+    const culpritText = document.getElementById('culpritText');
+    if (culprit && data.excess_pct > 0) {
+        culpritBox.style.display = 'flex';
+        culpritText.innerHTML = `<strong>${culprit.location}</strong> accounted for <strong>${culprit.share_pct}%</strong> of today's electricity load (${culprit.excess_pct > 0 ? '+' : ''}${culprit.excess_pct}% vs normal baseline).`;
+    } else {
+        culpritBox.style.display = 'flex';
+        culpritBox.className = 'alert alert-success mb-3';
+        culpritText.innerHTML = `All locations are operating within expected baseline consumption. No severe over-consumption detected.`;
+    }
+
+    // 4. Location Progress Comparison Bars
+    const metersContainer = document.getElementById('applianceMetersContainer');
+    if (data.location_analysis && data.location_analysis.length) {
+        metersContainer.innerHTML = data.location_analysis.map((loc, idx) => {
+            const color = LOC_COLORS[idx % LOC_COLORS.length];
+            const statusClass = loc.status === 'CRITICAL' ? 'badge-soft-danger' : (loc.status === 'HIGH' ? 'badge-soft-warning' : 'badge-soft-success');
+            
+            // Bar width: compare projected with baseline
+            const maxVal = Math.max(loc.projected_kwh, loc.baseline_kwh, 1);
+            const fillWidth = Math.min(100, Math.round((loc.projected_kwh / maxVal) * 100));
+            const baselineLeft = Math.min(100, Math.round((loc.baseline_kwh / maxVal) * 100));
+
+            const barColor = loc.status === 'CRITICAL' ? 'danger' : (loc.status === 'HIGH' ? 'warning' : 'success');
+
+            return `
+                <div class="app-compare-row">
+                    <div class="app-compare-header">
+                        <span style="display:inline-flex; align-items:center; gap:6px;">
+                            <span style="width:8px; height:8px; border-radius:50%; background:${color};"></span>
+                            <strong>${loc.location}</strong>
+                            <span class="badge ${statusClass}" style="font-size:0.7rem;">${loc.status}</span>
+                        </span>
+                        <span style="color:#475569; font-size:0.84rem;">
+                            <strong>${loc.today_kwh} kWh</strong> today 
+                            <span style="color:#94a3b8;">(proj. ${loc.projected_kwh} kWh vs ${loc.baseline_kwh} kWh base)</span>
+                            <span style="font-weight:700; color:${loc.variance_pct > 0 ? '#ef4444' : '#10b981'};">
+                                ${loc.variance_pct > 0 ? '+' : ''}${loc.variance_pct}%
+                            </span>
+                        </span>
+                    </div>
+                    <div class="compare-bar-container" title="Projected: ${loc.projected_kwh} kWh | Baseline: ${loc.baseline_kwh} kWh">
+                        <div class="compare-bar-fill ${barColor}" style="width: ${fillWidth}%;"></div>
+                        <div class="compare-bar-baseline" style="left: ${baselineLeft}%;" title="Baseline: ${loc.baseline_kwh} kWh"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 5. Electrical Health Cards
+    document.getElementById('healthPeakPower').innerText = `${data.today_peak_kw} kW`;
+    document.getElementById('healthPeakSub').innerText = `Baseline daily peak: ${data.baseline_peak_kw} kW`;
+    document.getElementById('healthPf').innerText = data.avg_power_factor.toFixed(2);
+    document.getElementById('healthAnomalies').innerText = `${data.total_anomalies_detected} Events`;
+
+    // 6. AI Recommendations
+    const recsContainer = document.getElementById('recsContainer');
+    if (data.recommendations && data.recommendations.length) {
+        recsContainer.innerHTML = data.recommendations.map(r => {
+            return `
+                <div class="rec-card">
+                    <div>
+                        <div class="rec-header">
+                            <span class="badge ${r.priority === 'High' ? 'badge-soft-danger' : 'badge-soft-warning'}">${r.priority} Priority</span>
+                            <small class="text-muted"><i class="fa-solid fa-location-dot"></i> ${r.location}</small>
+                        </div>
+                        <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text-dark);">${r.title}</h4>
+                        <p style="font-size: 0.85rem; color: #475569; line-height: 1.4;">${r.description}</p>
+                    </div>
+                    <div class="rec-savings">
+                        <i class="fa-solid fa-piggy-bank"></i>
+                        <span>Save ~₹${r.estimated_monthly_saving_inr.toLocaleString()} / mo</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 7. Threshold Alerts Table
+    const tableBody = document.getElementById('thresholdAlertsTable');
+    const badgeAnomalies = document.getElementById('badgeTotalAnomalies');
+    badgeAnomalies.innerText = `${data.threshold_alerts.length} Incidents`;
+
+    if (data.threshold_alerts && data.threshold_alerts.length) {
+        tableBody.innerHTML = data.threshold_alerts.map(a => `
+            <tr>
+                <td style="color:#64748b;"><i class="fa-regular fa-clock"></i> ${a.timestamp}</td>
+                <td><strong>${a.location}</strong></td>
+                <td><strong>${parseFloat(a.power_kw).toFixed(2)} kW</strong></td>
+                <td>${parseFloat(a.voltage).toFixed(1)} V</td>
+                <td><span style="color:#b91c1c; font-weight:600;">${a.issues}</span></td>
+                <td><span class="badge ${a.level === 'Danger' ? 'badge-soft-danger' : 'badge-soft-warning'}">${a.level}</span></td>
+            </tr>
+        `).join('');
+    } else {
+        tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-success"><i class="fa-solid fa-circle-check"></i> No critical electrical threshold anomalies recorded today.</td></tr>`;
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,355 @@
+{% extends 'layout.html' %}
+{% block title %}Reports & Export - EnerTrack{% endblock %}
+{% block header_title %}Reports & Data Export{% endblock %}
+
+{% block content %}
+<div class="page-header-container">
+    <div>
+        <h2 class="section-title">📄 Energy Reports & Data Export</h2>
+        <p class="section-subtitle">Generate and download structured CSV datasets, executive summaries, and raw telemetry logs.</p>
+    </div>
+    <div class="header-actions">
+        <a href="/api/export" class="btn btn-primary" download>
+            <i class="fa-solid fa-file-csv"></i> Download Full CSV Dataset
+        </a>
+    </div>
+</div>
+
+<!-- Live Internet Telemetry & Electricity Examination Hero Card -->
+<div class="card shadow-sm mb-4" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.1); overflow: hidden;">
+    <div class="card-body p-4">
+        <div class="flex-between flex-wrap gap-3 mb-3">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <div style="width: 52px; height: 52px; border-radius: 14px; background: rgba(14, 165, 233, 0.2); color: #38bdf8; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0;">
+                    <i class="fa-solid fa-satellite-dish"></i>
+                </div>
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <h3 style="color: #fff; margin: 0; font-size: 1.25rem; font-weight: 700;">🌐 Live Internet Telemetry & Electricity Audit</h3>
+                        <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 0.72rem;">
+                            <i class="fa-solid fa-circle text-success" style="font-size: 0.5rem;"></i> Active Open Grid API
+                        </span>
+                    </div>
+                    <p style="color: #94a3b8; font-size: 0.88rem; margin: 0.35rem 0 0 0;">
+                        Pulls authentic real-time electrical telemetry from the public <strong>National Grid ESO API</strong>, examining live power draw (kW), 30-min energy taken (kWh), costs in ₹, grid fuel mix, and electrical stability.
+                    </p>
+                </div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-primary" id="btnFetchInternet" onclick="fetchLiveInternetTelemetry()" style="box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);">
+                    <i class="fa-solid fa-bolt"></i> Fetch Live Data & Examine
+                </button>
+            </div>
+        </div>
+
+        <!-- Dynamic Results Container -->
+        <div id="internetExamContainer" style="display: none; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 1.25rem; padding-top: 1.25rem;">
+            <!-- Rendered by JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Export Options Grid -->
+<div class="recs-grid mb-4" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+    <!-- Card 1: Full Database CSV -->
+    <div class="card shadow-sm p-4 flex-between flex-column text-left">
+        <div>
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: var(--accent-light); color: var(--accent-color); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 1rem;">
+                <i class="fa-solid fa-database"></i>
+            </div>
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.35rem;">Full Database Export</h3>
+            <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Complete record of all electrical telemetry readings across all meter locations.
+            </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; width: 100%;">
+            <a href="/api/export" class="btn btn-primary w-100" style="justify-content: center;" download>
+                <i class="fa-solid fa-download"></i> CSV Format
+            </a>
+            <a href="/api/export?format=json" class="btn btn-outline" style="white-space: nowrap;" download>
+                JSON
+            </a>
+        </div>
+    </div>
+
+    <!-- Card 2: Last 7 Days Telemetry -->
+    <div class="card shadow-sm p-4 flex-between flex-column text-left">
+        <div>
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: var(--success-light); color: var(--success-color); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 1rem;">
+                <i class="fa-solid fa-calendar-week"></i>
+            </div>
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.35rem;">Last 7 Days Activity</h3>
+            <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Recent weekly snapshot including load profiles, daily peaks, and consumption integrals.
+            </p>
+        </div>
+        <a href="/api/export?days=7" class="btn btn-outline w-100" style="justify-content: center; border-color: var(--success-color); color: var(--success-color);" download>
+            <i class="fa-solid fa-download"></i> Export Last 7 Days (CSV)
+        </a>
+    </div>
+
+    <!-- Card 3: Last 30 Days Monthly Log -->
+    <div class="card shadow-sm p-4 flex-between flex-column text-left">
+        <div>
+            <div style="width: 46px; height: 46px; border-radius: 12px; background: #ede9fe; color: #7c3aed; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 1rem;">
+                <i class="fa-solid fa-calendar-days"></i>
+            </div>
+            <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.35rem;">Monthly Billing Cycle (30 Days)</h3>
+            <p class="text-muted" style="font-size: 0.88rem; margin-bottom: 1.25rem;">
+                Full month telemetry suitable for utility bill reconciliation and tariff analysis.
+            </p>
+        </div>
+        <a href="/api/export?days=30" class="btn btn-outline w-100" style="justify-content: center; border-color: #7c3aed; color: #7c3aed;" download>
+            <i class="fa-solid fa-download"></i> Export Last 30 Days (CSV)
+        </a>
+    </div>
+</div>
+
+<!-- Custom Filtered Export Card -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header flex-between">
+        <div>
+            <h3><i class="fa-solid fa-filter text-primary"></i> Filtered Data Export</h3>
+            <small class="text-muted">Generate a custom tailored CSV export based on specific location or keyword</small>
+        </div>
+    </div>
+    <div class="card-body">
+        <form id="customExportForm" onsubmit="handleCustomExport(event)">
+            <div class="form-row">
+                <div class="form-group col-4">
+                    <label for="exportLocation"><i class="fa-solid fa-location-dot"></i> Meter Location</label>
+                    <select id="exportLocation" class="form-control">
+                        <option value="All">All Locations</option>
+                        <option value="Main Meter">Main Meter</option>
+                        <option value="Lab Building A">Lab Building A</option>
+                        <option value="Library Wing">Library Wing</option>
+                        <option value="Computer Center">Computer Center</option>
+                        <option value="Cafeteria Block">Cafeteria Block</option>
+                    </select>
+                </div>
+                <div class="form-group col-4">
+                    <label for="exportTimeframe"><i class="fa-regular fa-clock"></i> Time Window</label>
+                    <select id="exportTimeframe" class="form-control">
+                        <option value="0">All Historical Data</option>
+                        <option value="1">Today's Readings</option>
+                        <option value="7">Last 7 Days</option>
+                        <option value="30">Last 30 Days</option>
+                    </select>
+                </div>
+                <div class="form-group col-4">
+                    <label for="exportSearch"><i class="fa-solid fa-magnifying-glass"></i> Keyword / Location</label>
+                    <input type="text" id="exportSearch" class="form-control" placeholder="e.g. Main Meter, Computer Center">
+                </div>
+            </div>
+            <div class="mt-3 flex-between">
+                <span class="text-muted" style="font-size: 0.85rem;"><i class="fa-solid fa-circle-info"></i> Generates standardized RFC 4180 UTF-8 CSV with column headers.</span>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fa-solid fa-download"></i> Generate & Download CSV
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentInternetReadings = [];
+
+function fetchLiveInternetTelemetry() {
+    const btn = document.getElementById('btnFetchInternet');
+    const container = document.getElementById('internetExamContainer');
+    
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Connecting to National Grid ESO API...`;
+    container.style.display = 'block';
+    container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem 0; color: #94a3b8;">
+            <i class="fa-solid fa-satellite fa-spin" style="font-size: 2.2rem; color: #38bdf8; margin-bottom: 0.75rem;"></i>
+            <p style="margin: 0; font-size: 1rem; color: #f1f5f9; font-weight: 600;">Retrieving real-time telemetry from public open energy APIs...</p>
+            <small style="color: #64748b;">Querying generation mix, carbon intensity, and 18 regional distribution areas</small>
+        </div>
+    `;
+
+    fetch('/api/internet-telemetry/examine')
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-rotate-right"></i> Refresh Live Data`;
+
+            if (res.status !== 'success') {
+                container.innerHTML = `<div class="alert alert-danger" style="margin: 0;">Error: ${res.message}</div>`;
+                return;
+            }
+
+            const ex = res.examination;
+            currentInternetReadings = ex.meter_readings;
+
+            container.innerHTML = `
+                <!-- Stream Meta Ribbon -->
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.25rem; font-size: 0.84rem; color: #94a3b8;">
+                    <div>
+                        <i class="fa-solid fa-clock"></i> <strong>Live Window:</strong> ${ex.timestamp_window}
+                        <span style="margin: 0 0.5rem;">•</span>
+                        <i class="fa-solid fa-database"></i> <strong>Source:</strong> ${ex.data_source}
+                    </div>
+                    <div>
+                        <span class="badge" style="background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3);">
+                            <i class="fa-solid fa-leaf"></i> ${ex.carbon_intensity_g_kwh} gCO2/kWh (${ex.carbon_rating})
+                        </span>
+                        <span class="badge ms-1" style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3);">
+                            ${ex.clean_energy_share_pct}% Clean Energy
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 4 KPI Metrics -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 1rem;">
+                        <span style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Active Power Demand</span>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: #38bdf8; margin: 0.25rem 0;">${ex.total_power_kw.toFixed(3)} kW</h3>
+                        <span style="font-size: 0.78rem; color: #cbd5e1;">Across 5 facility meter locations</span>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 1rem;">
+                        <span style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Energy Taken (30 min)</span>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: #34d399; margin: 0.25rem 0;">${ex.period_energy_kwh.toFixed(3)} kWh</h3>
+                        <span style="font-size: 0.78rem; color: #cbd5e1;">Projected Day: <strong>${ex.projected_daily_kwh} kWh</strong></span>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 1rem;">
+                        <span style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Electricity Cost</span>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: #fbbf24; margin: 0.25rem 0;">₹${ex.period_cost_inr.toFixed(2)}</h3>
+                        <span style="font-size: 0.78rem; color: #cbd5e1;">@ ₹${ex.tariff_rate_inr.toFixed(2)} / kWh (Day: ₹${ex.projected_daily_cost_inr.toFixed(2)})</span>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 1rem;">
+                        <span style="font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Grid Clean Mix</span>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: #a78bfa; margin: 0.25rem 0;">${ex.clean_energy_share_pct}%</h3>
+                        <span style="font-size: 0.78rem; color: #cbd5e1;">Carbon Emitted: <strong>${ex.carbon_emitted_kg} kg CO2</strong></span>
+                    </div>
+                </div>
+
+                <!-- Detailed Meter Breakdown Table -->
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; overflow: hidden; margin-bottom: 1.5rem;">
+                    <div style="padding: 0.75rem 1rem; background: rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <span style="font-weight: 600; font-size: 0.9rem; color: #f1f5f9;"><i class="fa-solid fa-list-check text-primary"></i> Meter-by-Meter Electricity Consumption Audit</span>
+                        <span style="font-size: 0.78rem; color: #94a3b8;">Avg Voltage: <strong>${ex.avg_voltage} V</strong> | Avg PF: <strong>${ex.avg_power_factor}</strong></span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table mb-0" style="color: #cbd5e1; font-size: 0.84rem;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); color: #94a3b8;">
+                                    <th>Location</th>
+                                    <th>Regional Grid Source</th>
+                                    <th>Voltage</th>
+                                    <th>Current</th>
+                                    <th>Power (kW)</th>
+                                    <th>Energy (30m)</th>
+                                    <th>Power Factor</th>
+                                    <th>Period Cost</th>
+                                    <th>CO2 Emitted</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${ex.meter_readings.map(r => `
+                                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                        <td><strong style="color: #fff;">${r.location}</strong></td>
+                                        <td><span style="color: #94a3b8;"><i class="fa-solid fa-tower-broadcast" style="font-size:0.75rem;"></i> ${r.source_grid_zone}</span></td>
+                                        <td>${r.voltage} V</td>
+                                        <td>${r.current} A</td>
+                                        <td><strong style="color: #38bdf8;">${r.power_kw.toFixed(3)} kW</strong></td>
+                                        <td><strong style="color: #34d399;">${r.energy_kwh.toFixed(3)} kWh</strong></td>
+                                        <td><span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">${r.power_factor}</span></td>
+                                        <td><strong style="color: #fbbf24;">₹${r.cost_inr.toFixed(2)}</strong></td>
+                                        <td><small style="color: #cbd5e1;">${r.co2_emitted_g} g</small></td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- AI Electricity Audit Verdict & Actions -->
+                <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 1.25rem;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.75rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <span class="badge ${ex.verdict_level === 'success' ? 'badge-success' : 'badge-warning'}">
+                                ${ex.verdict}
+                            </span>
+                            <strong style="color: #fff; font-size: 0.95rem;">AI Electricity Examination Verdict</strong>
+                        </div>
+                        <button type="button" class="btn btn-success btn-sm" id="btnImportInternetDb" onclick="importInternetReadingsToDb()" style="box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);">
+                            <i class="fa-solid fa-file-import"></i> Ingest Readings into EnerTrack DB
+                        </button>
+                    </div>
+                    <p style="color: #cbd5e1; font-size: 0.88rem; line-height: 1.45; margin-bottom: 0.75rem;">
+                        ${ex.analysis_text}
+                    </p>
+                    <ul style="margin: 0; padding-left: 1.25rem; font-size: 0.82rem; color: #94a3b8; display: flex; flex-direction: column; gap: 0.35rem;">
+                        ${ex.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                    </ul>
+                    <div id="importStatusMsg" class="mt-2" style="display:none;"></div>
+                </div>
+            `;
+        })
+        .catch(err => {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-bolt"></i> Retry Fetching Live Data`;
+            container.innerHTML = `<div class="alert alert-danger" style="margin: 0;">Error fetching live internet telemetry: ${err}</div>`;
+        });
+}
+
+function importInternetReadingsToDb() {
+    if (!currentInternetReadings || !currentInternetReadings.length) return;
+    const btn = document.getElementById('btnImportInternetDb');
+    const msgEl = document.getElementById('importStatusMsg');
+    
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Ingesting...`;
+    
+    fetch('/api/internet-telemetry/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ readings: currentInternetReadings })
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        if (data.status === 'success') {
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> Ingested (${data.imported_count} Rows)`;
+            btn.className = 'btn btn-outline-success btn-sm';
+            msgEl.style.display = 'block';
+            msgEl.className = 'alert alert-success mt-2 py-2';
+            msgEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${data.message} View your updated analytics on the <a href="/overview" class="alert-link" style="color:inherit;text-decoration:underline;">Overview</a> or <a href="/collection" class="alert-link" style="color:inherit;text-decoration:underline;">Collection</a> pages.`;
+        } else {
+            btn.innerHTML = `<i class="fa-solid fa-file-import"></i> Try Again`;
+            msgEl.style.display = 'block';
+            msgEl.className = 'alert alert-danger mt-2 py-2';
+            msgEl.innerHTML = `Error: ${data.message}`;
+        }
+    })
+    .catch(err => {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-file-import"></i> Try Again`;
+        msgEl.style.display = 'block';
+        msgEl.className = 'alert alert-danger mt-2 py-2';
+        msgEl.innerHTML = `Error: ${err}`;
+    });
+}
+
+function handleCustomExport(e) {
+    e.preventDefault();
+    const loc = document.getElementById('exportLocation')?.value || 'All';
+    const days = document.getElementById('exportTimeframe')?.value || '0';
+    const search = document.getElementById('exportSearch')?.value?.trim() || '';
+
+    const params = new URLSearchParams();
+    if (loc && loc !== 'All') params.set('location', loc);
+    if (days && days !== '0') params.set('days', days);
+    if (search) params.set('search', search);
+
+    window.location.href = `/api/export?${params.toString()}`;
+}
+</script>
+{% endblock %}
