@@ -1,11 +1,28 @@
 import sqlite3
 import os
+import shutil
 import random
 from datetime import datetime, timedelta
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'energy.db')
+if os.environ.get('VERCEL'):
+    DB_PATH = '/tmp/energy.db'
+    _bundled_db = os.path.join(os.path.dirname(__file__), 'energy.db')
+    if not os.path.exists(DB_PATH) and os.path.exists(_bundled_db):
+        try:
+            shutil.copyfile(_bundled_db, DB_PATH)
+        except Exception:
+            pass
+else:
+    DB_PATH = os.path.join(os.path.dirname(__file__), 'energy.db')
 
 def get_db_connection():
+    if os.environ.get('VERCEL') and not os.path.exists(DB_PATH):
+        _bundled_db = os.path.join(os.path.dirname(__file__), 'energy.db')
+        if os.path.exists(_bundled_db):
+            try:
+                shutil.copyfile(_bundled_db, DB_PATH)
+            except Exception:
+                pass
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
