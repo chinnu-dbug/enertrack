@@ -1238,6 +1238,8 @@ def api_import_internet_telemetry():
 
 
 if __name__ == '__main__':
-    print("Starting EnerTrack Web Server...")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    print(f"Starting EnerTrack Web Server on port {port}...")
+    app.run(host='0.0.0.0', port=port, debug=False)
+
 
