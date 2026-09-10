@@ -37,6 +37,8 @@ def validate_reading_data(voltage, current, power_kw, energy_kwh, power_factor):
 
 @app.route('/')
 @app.route('/collection')
+@app.route('/api/index')
+@app.route('/api/index.py')
 def page_collection():
     return render_template('collection.html', active_page='collection')
 
